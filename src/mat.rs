@@ -6,15 +6,17 @@ use crate::*;
 use wide::f32x4;
 
 macro_rules! mat2s {
-    ($($n:ident, $vt:ident => $t:ident),+) => {
+    ($($n:ident => $m3t:ident, $v3t:ident, $vt:ident, $t:ident),+) => {
         /// A 2x2 square matrix.
         ///
         /// Useful for performing linear transformations (rotation, scaling) on 2d vectors.
-        $(#[derive(Clone, Copy, Debug, Default)]
+        $(#[derive(Clone, Copy, Debug)]
         #[repr(C)]
         pub struct $n {
             pub cols: [$vt; 2],
         }
+
+        derive_default_identity!($n);
 
         impl $n {
             #[inline]
@@ -22,6 +24,24 @@ macro_rules! mat2s {
                 $n {
                     cols: [col1, col2],
                 }
+            }
+
+            #[inline]
+            pub fn identity() -> Self {
+                Self::new(
+                    $vt::new($t::from(1.0), $t::from(0.0)),
+                    $vt::new($t::from(0.0), $t::from(1.0)),
+                )
+            }
+
+            /// Turn this into a homogeneous 2d transformation matrix.
+            #[inline]
+            pub fn into_homogeneous(self) -> $m3t {
+                $m3t::new(
+                    self.cols[0].into(),
+                    self.cols[1].into(),
+                    $v3t::new($t::from(0.0), $t::from(0.0), $t::from(1.0))
+                )
             }
 
             #[inline]
@@ -152,20 +172,22 @@ macro_rules! mat2s {
     }
 }
 
-mat2s!(Mat2, Vec2 => f32 , Wat2, Wec2 => f32x4);
+mat2s!(Mat2 => Mat3, Vec3, Vec2, f32, Wat2 => Wat3, Wec3, Wec2, f32x4);
 
 macro_rules! mat3s {
-    ($($n:ident => $rt:ident, $bt:ident, $m4t:ident, $v4t:ident, $vt:ident, $t:ident),+) => {
+    ($($n:ident => $rt:ident, $bt:ident, $m4t:ident, $v4t:ident, $v2t:ident, $vt:ident, $t:ident),+) => {
         /// A 3x3 square matrix.
         ///
         /// Useful for performing linear transformations (rotation, scaling) on 3d vectors,
         /// or for performing arbitrary transformations (linear +   translation, projection, etc)
         /// on homogeneous 2d vectors
-        $(#[derive(Clone, Copy, Debug, Default)]
+        $(#[derive(Clone, Copy, Debug)]
         #[repr(C)]
         pub struct $n {
             pub cols: [$vt; 3],
         }
+
+        derive_default_identity!($n);
 
         impl $n {
             #[inline]
@@ -173,6 +195,49 @@ macro_rules! mat3s {
                 $n {
                     cols: [col1, col2, col3],
                 }
+            }
+
+            /// Assumes homogeneous 2d coordinates.
+            #[inline]
+            pub fn from_translation(trans: $v2t) -> Self {
+                Self::new(
+                    $vt::new($t::from(1.0), $t::from(0.0), $t::from(0.0)),
+                    $vt::new($t::from(0.0), $t::from(1.0), $t::from(0.0)),
+                    $vt::new(trans.x, trans.y, $t::from(1.0)))
+            }
+
+            /// Assumes homogeneous 2d coordinates.
+            #[inline]
+            pub fn from_scale_homogeneous(scale: $t) -> Self {
+                let zero = $t::from(0.0);
+                Self::new(
+                    $vt::new(scale, zero, zero),
+                    $vt::new(zero, scale, zero),
+                    $vt::new(zero, zero, $t::from(1.0)),
+                )
+            }
+
+            /// Assumes homogeneous 2d coordinates.
+            #[inline]
+            pub fn from_nonuniform_scale_homogeneous(scale: $vt) -> Self {
+                let zero = $t::from(0.0);
+                Self::new(
+                    $vt::new(scale.x, zero, zero),
+                    $vt::new(zero, scale.y, zero),
+                    $vt::new(zero, zero, $t::from(1.0)),
+                )
+            }
+
+            /// Builds a homogeneous 2d rotation matrix (in the xy plane) from a given angle in radians.
+            #[inline]
+            pub fn from_rotation_homogeneous(angle: $t) -> Self {
+                let (s, c) = angle.sin_cos();
+                let zero = $t::from(0.0);
+                Self::new(
+                    $vt::new(c, s, zero),
+                    $vt::new(s, -c, zero),
+                    $vt::new(zero, zero, $t::from(1.0)),
+                )
             }
 
             #[inline]
@@ -297,6 +362,43 @@ macro_rules! mat3s {
                     self.cols[1].into(),
                     self.cols[2].into(),
                     $v4t::new(zero, zero, zero, one)
+                )
+            }
+
+            /// If this matrix is not currently invertable, this function will return
+            /// an invalid inverse. This status is not checked by the library.
+            #[inline]
+            pub fn inverse(&mut self) {
+                *self = self.transposed();
+            }
+
+            /// If this matrix is not currently invertable, this function will return
+            /// an invalid inverse. This status is not checked by the library.
+            #[inline]
+            pub fn inversed(&self) -> Self {
+                let x = self.cols[1].cross(self.cols[2]);
+                let y = self.cols[2].cross(self.cols[0]);
+                let z = self.cols[0].cross(self.cols[1]);
+                let det = self.cols[2].dot(y);
+                let inv_det = $t::from(1.0) / det;
+
+                Self::new(x * inv_det, y * inv_det, z * inv_det).transposed()
+            }
+
+            #[inline]
+            pub fn transpose(&mut self) {
+                *self = self.transposed();
+            }
+
+            #[inline]
+            pub fn transposed(&self) -> Self {
+                let (x0, y0, z0) = self.cols[0].into();
+                let (x1, y1, z1) = self.cols[1].into();
+                let (x2, y2, z2) = self.cols[2].into();
+                Self::new(
+                    $vt::new(x0, x1, x2),
+                    $vt::new(y0, y1, y2),
+                    $vt::new(z0, z1, z2),
                 )
             }
 
@@ -464,7 +566,7 @@ macro_rules! mat3s {
     }
 }
 
-mat3s!(Mat3 => Rotor3, Bivec3, Mat4, Vec4, Vec3, f32, Wat3 => WRotor3, WBivec3, Wat4, Wec4, Wec3, f32x4);
+mat3s!(Mat3 => Rotor3, Bivec3, Mat4, Vec4, Vec2, Vec3, f32, Wat3 => WRotor3, WBivec3, Wat4, Wec4, Wec2, Wec3, f32x4);
 
 macro_rules! mat4s {
     ($($n:ident => $rt:ident, $bt:ident, $vt:ident, $v3t:ident, $t:ident),+) => {
@@ -476,11 +578,13 @@ macro_rules! mat4s {
         ///
         /// Note that most constructors assume that the matrix will be used as a homogeneous 3d
         /// transformation matrix.
-        $(#[derive(Clone, Copy, Debug, Default)]
+        $(#[derive(Clone, Copy, Debug)]
         #[repr(C)]
         pub struct $n {
             pub cols: [$vt; 4],
         }
+
+        derive_default_identity!($n);
 
         impl $n {
             #[inline]
@@ -660,6 +764,109 @@ macro_rules! mat4s {
                     $vt::new(-r.dot(eye), -u.dot(eye), -f.dot(eye), $t::from(1.0))
                 )
             }
+
+            #[inline]
+            pub fn transpose(&mut self) {
+                *self = self.transposed();
+            }
+
+            #[inline]
+            pub fn transposed(&self) -> Self {
+                let (x0, y0, z0, w0) = self.cols[0].into();
+                let (x1, y1, z1, w1) = self.cols[1].into();
+                let (x2, y2, z2, w2) = self.cols[2].into();
+                let (x3, y3, z3, w3) = self.cols[3].into();
+                Self::new(
+                    $vt::new(x0, x1, x2, x3),
+                    $vt::new(y0, y1, y2, y3),
+                    $vt::new(z0, z1, z2, z3),
+                    $vt::new(w0, w1, w2, w3),
+                )
+            }
+
+            /// If this matrix is not currently invertable, this function will return
+            /// an invalid inverse. This status is not checked by the library.
+            #[inline]
+            pub fn inverse(&mut self) {
+                *self = self.inversed();
+            }
+
+            /// If this matrix is not currently invertable, this function will return
+            /// an invalid inverse. This status is not checked by the library.
+            #[inline]
+            pub fn inversed(&self) -> Self {
+                let (m00, m01, m02, m03) = self.cols[0].into();
+                let (m10, m11, m12, m13) = self.cols[1].into();
+                let (m20, m21, m22, m23) = self.cols[2].into();
+                let (m30, m31, m32, m33) = self.cols[3].into();
+
+                let coef00 = m22 * m33 - m32 * m23;
+                let coef02 = m12 * m33 - m32 * m13;
+                let coef03 = m12 * m23 - m22 * m13;
+
+                let coef04 = m21 * m33 - m31 * m23;
+                let coef06 = m11 * m33 - m31 * m13;
+                let coef07 = m11 * m23 - m21 * m13;
+
+                let coef08 = m21 * m32 - m31 * m22;
+                let coef10 = m11 * m32 - m31 * m12;
+                let coef11 = m11 * m22 - m21 * m12;
+
+                let coef12 = m20 * m33 - m30 * m23;
+                let coef14 = m10 * m33 - m30 * m13;
+                let coef15 = m10 * m23 - m20 * m13;
+
+                let coef16 = m20 * m32 - m30 * m22;
+                let coef18 = m10 * m32 - m30 * m12;
+                let coef19 = m10 * m22 - m20 * m12;
+
+                let coef20 = m20 * m31 - m30 * m21;
+                let coef22 = m10 * m31 - m30 * m11;
+                let coef23 = m10 * m21 - m20 * m11;
+
+                let fac0 = $vt::new(coef00, coef00, coef02, coef03);
+                let fac1 = $vt::new(coef04, coef04, coef06, coef07);
+                let fac2 = $vt::new(coef08, coef08, coef10, coef11);
+                let fac3 = $vt::new(coef12, coef12, coef14, coef15);
+                let fac4 = $vt::new(coef16, coef16, coef18, coef19);
+                let fac5 = $vt::new(coef20, coef20, coef22, coef23);
+
+                let vec0 = $vt::new(m10, m00, m00, m00);
+                let vec1 = $vt::new(m11, m01, m01, m01);
+                let vec2 = $vt::new(m12, m02, m02, m02);
+                let vec3 = $vt::new(m13, m03, m03, m03);
+
+                let inv0 = vec1 * fac0 - vec2 * fac1 + vec3 * fac2;
+                let inv1 = vec0 * fac0 - vec2 * fac3 + vec3 * fac4;
+                let inv2 = vec0 * fac1 - vec1 * fac3 + vec3 * fac5;
+                let inv3 = vec0 * fac2 - vec1 * fac4 + vec2 * fac5;
+
+                let sign_a = $vt::new($t::from(1.0), $t::from(-1.0), $t::from(1.0), $t::from(-1.0));
+                let sign_b = $vt::new($t::from(-1.0), $t::from(1.0), $t::from(-1.0), $t::from(1.0));
+
+                let inverse = Self {
+                    cols: [
+                        inv0 * sign_a,
+                        inv1 * sign_b,
+                        inv2 * sign_a,
+                        inv3 * sign_b,
+                    ]
+                };
+
+                let row0 = $vt::new(
+                    inverse.cols[0].x,
+                    inverse.cols[1].x,
+                    inverse.cols[2].x,
+                    inverse.cols[3].x,
+                );
+
+                let dot0 = self.cols[0] * row0;
+                let dot1 = dot0.x + dot0.y + dot0.z + dot0.w;
+
+                let rcp_det = $t::from(1.0) / dot1;
+                inverse * rcp_det
+            }
+
             #[inline]
             pub fn layout() -> alloc::alloc::Layout {
                 alloc::alloc::Layout::from_size_align(std::mem::size_of::<Self>(), std::mem::align_of::<$t>()).unwrap()
@@ -797,8 +1004,17 @@ macro_rules! mat4s {
                     a.x * rhs.x + b.x * rhs.y + c.x * rhs.z + d.x * rhs.w,
                     a.y * rhs.x + b.y * rhs.y + c.y * rhs.z + d.y * rhs.w,
                     a.z * rhs.x + b.z * rhs.y + c.z * rhs.z + d.z * rhs.w,
-                    a.w * rhs.x + b.w * rhs.y + c.w * rhs.z + d.z * rhs.w,
+                    a.w * rhs.x + b.w * rhs.y + c.w * rhs.z + d.w * rhs.w,
                 )
+            }
+        }
+
+        impl Mul<$t> for $n {
+            type Output = Self;
+            #[inline]
+            fn mul(mut self, rhs: $t) -> Self {
+                self.cols.iter_mut().for_each(|c| *c = rhs * *c);
+                self
             }
         }
 
