@@ -50,7 +50,11 @@ macro_rules! mat2s {
             }
 
             #[inline]
+<<<<<<< HEAD
             pub fn as_array(&self) -> [$t; 4] {
+=======
+            pub fn as_array(&self) -> &[$t; 4] {
+>>>>>>> f09d279f99fbb1e941952575afa1f539a2b9a901
                 use std::convert::TryInto;
                 self.as_slice().try_into().unwrap()
             }
@@ -420,7 +424,11 @@ macro_rules! mat3s {
             }
 
             #[inline]
+<<<<<<< HEAD
             pub fn as_array(&self) -> [$t; 9] {
+=======
+            pub fn as_array(&self) -> &[$t; 9] {
+>>>>>>> f09d279f99fbb1e941952575afa1f539a2b9a901
                 use std::convert::TryInto;
                 self.as_slice().try_into().unwrap()
             }
@@ -897,7 +905,11 @@ macro_rules! mat4s {
             }
 
             #[inline]
+<<<<<<< HEAD
             pub fn as_array(&self) -> [$t; 16] {
+=======
+            pub fn as_array(&self) -> &[$t; 16] {
+>>>>>>> f09d279f99fbb1e941952575afa1f539a2b9a901
                 use std::convert::TryInto;
                 self.as_slice().try_into().unwrap()
             }

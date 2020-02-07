@@ -236,7 +236,11 @@ macro_rules! vec2s {
             }
 
             #[inline]
+<<<<<<< HEAD
             pub fn as_array(&self) -> [$t; 2] {
+=======
+            pub fn as_array(&self) -> &[$t; 2] {
+>>>>>>> f09d279f99fbb1e941952575afa1f539a2b9a901
                 use std::convert::TryInto;
                 self.as_slice().try_into().unwrap()
             }
@@ -523,7 +527,12 @@ impl From<Wec3> for Wec2 {
 
 impl Vec2 {
     #[inline]
-    pub fn refracted(&mut self, normal: Self, eta: f32) -> Self {
+    pub fn refract(&mut self, normal: Self, eta: f32) {
+        *self = self.refracted(normal, eta);
+    }
+
+    #[inline]
+    pub fn refracted(&self, normal: Self, eta: f32) -> Self {
         let n = normal;
         let i = *self;
         let ndi = n.dot(i);
@@ -564,7 +573,12 @@ impl Wec2 {
     }
 
     #[inline]
-    pub fn refracted(&mut self, normal: Self, eta: f32x4) -> Self {
+    pub fn refract(&mut self, normal: Self, eta: f32x4) {
+        *self = self.refracted(normal, eta);
+    }
+
+    #[inline]
+    pub fn refracted(&self, normal: Self, eta: f32x4) -> Self {
         let n = normal;
         let i = *self;
         let one = f32x4::from(1.0);
@@ -843,7 +857,11 @@ macro_rules! vec3s {
             }
 
             #[inline]
+<<<<<<< HEAD
             pub fn as_array(&self) -> [$t; 3] {
+=======
+            pub fn as_array(&self) -> &[$t; 3] {
+>>>>>>> f09d279f99fbb1e941952575afa1f539a2b9a901
                 use std::convert::TryInto;
                 self.as_slice().try_into().unwrap()
             }
@@ -1157,7 +1175,12 @@ impl From<Wec4> for Wec3 {
 
 impl Vec3 {
     #[inline]
-    pub fn refracted(&mut self, normal: Self, eta: f32) -> Self {
+    pub fn refract(&mut self, normal: Self, eta: f32) {
+        *self = self.refracted(normal, eta);
+    }
+
+    #[inline]
+    pub fn refracted(&self, normal: Self, eta: f32) -> Self {
         let n = normal;
         let i = *self;
         let ndi = n.dot(i);
@@ -1200,7 +1223,12 @@ impl Wec3 {
     }
 
     #[inline]
-    pub fn refracted(&mut self, normal: Self, eta: f32x4) -> Self {
+    pub fn refract(&mut self, normal: Self, eta: f32x4) {
+        *self = self.refracted(normal, eta);
+    }
+
+    #[inline]
+    pub fn refracted(&self, normal: Self, eta: f32x4) -> Self {
         let n = normal;
         let i = *self;
         let one = f32x4::from(1.0);
@@ -1439,6 +1467,12 @@ macro_rules! vec4s {
 
 #           [inline]
             pub fn as_array(&self) -> [$t; 4] {
+                use std::convert::TryInto;
+                self.as_slice().try_into().unwrap()
+            }
+
+            #[inline]
+            pub fn as_array(&self) -> &[$t; 4] {
                 use std::convert::TryInto;
                 self.as_slice().try_into().unwrap()
             }
@@ -1740,7 +1774,12 @@ impl From<Wec3> for Wec4 {
 
 impl Vec4 {
     #[inline]
-    pub fn refracted(&mut self, normal: Self, eta: f32) -> Self {
+    pub fn refract(&mut self, normal: Self, eta: f32) {
+        *self = self.refracted(normal, eta);
+    }
+
+    #[inline]
+    pub fn refracted(&self, normal: Self, eta: f32) -> Self {
         let n = normal;
         let i = *self;
         let ndi = n.dot(i);
